@@ -5,64 +5,125 @@
 <meta name="authoring-tool" content="Adobe_Animate_CC">
 <title>play_Loop_00</title>
 
-<!-- fa que el navegador mòbil escali bé -->
+<!-- obliga el mòbil a escalar bé -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <script src="https://code.createjs.com/1.0.0/createjs.min.js"></script>
 <script src="play_Loop_00.js"></script>
 <script>
 var canvas, stage, exportRoot, anim_container, dom_overlay_container, fnStartAnimation;
+
 function init() {
 	canvas = document.getElementById("canvas");
 	anim_container = document.getElementById("animation_container");
 	dom_overlay_container = document.getElementById("dom_overlay_container");
-	var comp=AdobeAn.getComposition("475C05EB26C74F90A8370B1DA3191B36");
-	var lib=comp.getLibrary();
+
+	var comp = AdobeAn.getComposition("475C05EB26C74F90A8370B1DA3191B36");
+	var lib  = comp.getLibrary();
+
 	var loader = new createjs.LoadQueue(false);
-	loader.addEventListener("fileload", function(evt){handleFileLoad(evt,comp)});
-	loader.addEventListener("complete", function(evt){handleComplete(evt,comp)});
+	loader.addEventListener("fileload", function(evt){ handleFileLoad(evt,comp); });
+	loader.addEventListener("complete", function(evt){ handleComplete(evt,comp); });
 	loader.loadManifest(lib.properties.manifest);
 }
+
 function handleFileLoad(evt, comp) {
-	var images=comp.getImages();	
-	if (evt && (evt.item.type == "image")) { images[evt.item.id] = evt.result; }	
-}
-function handleComplete(evt,comp) {
-	var lib=comp.getLibrary();
-	var ss=comp.getSpriteSheet();
-	var queue = evt.target;
-	var ssMetadata = lib.ssMetadata;
-	for(i=0; i<ssMetadata.length; i++) {
-		ss[ssMetadata[i].name] = new createjs.SpriteSheet( {
-			"images": [queue.getResult(ssMetadata[i].name)], 
-			"frames": ssMetadata[i].frames
-		} )
+	var images = comp.getImages();
+	if (evt && (evt.item.type == "image")) {
+		images[evt.item.id] = evt.result;
 	}
+}
+
+function handleComplete(evt, comp) {
+	var lib = comp.getLibrary();
+	var ss = comp.getSpriteSheet();
+	var queue = evt.target;
+	var ssMetadata = lib.ssMetadata || [];
+
+	for (var i = 0; i < ssMetadata.length; i++) {
+		ss[ssMetadata[i].name] = new createjs.SpriteSheet({
+			"images": [ queue.getResult(ssMetadata[i].name) ],
+			"frames": ssMetadata[i].frames
+		});
+	}
+
 	exportRoot = new lib.play_Loop_00();
 	stage = new lib.Stage(canvas);
-	stage.enableMouseOver();	
+	stage.enableMouseOver();
+
 	fnStartAnimation = function() {
 		stage.addChild(exportRoot);
 		createjs.Ticker.framerate = lib.properties.fps;
 		createjs.Ticker.addEventListener("tick", stage);
-	}	    
-	// responsive activat
-	AdobeAn.makeResponsive(true,'both',true,1,[canvas,anim_container,dom_overlay_container]);	
+	};
+
 	AdobeAn.compositionLoaded(lib.properties.id);
 	fnStartAnimation();
+
+	/* -----------------------
+	   RESPONSIVE: resize logic
+	   ----------------------- */
+	(function() {
+		var libW = lib.properties.width;   // 960
+		var libH = lib.properties.height;  // 640
+
+		function resizeCanvas() {
+			// parent width (container responsive)
+			var parentW = anim_container.clientWidth;
+
+			// scale to fit width while keeping aspect ratio
+			var scale = parentW / libW;
+			if (scale <= 0) scale = 1;
+
+			// device pixel ratio for crispness
+			var ratio = window.devicePixelRatio || 1;
+
+			// set CSS size (what user sees)
+			var cssW = Math.round(libW * scale);
+			var cssH = Math.round(libH * scale);
+			canvas.style.width  = cssW + "px";
+			canvas.style.height = cssH + "px";
+
+			// set internal canvas resolution for crisp drawing
+			canvas.width  = Math.round(libW * scale * ratio);
+			canvas.height = Math.round(libH * scale * ratio);
+
+			// overlay must match CSS size
+			dom_overlay_container.style.width  = canvas.style.width;
+			dom_overlay_container.style.height = canvas.style.height;
+
+			// scale stage coordinates (include devicePixelRatio)
+			stage.scaleX = stage.scaleY = scale * ratio;
+
+			// a single update right away (ticker will keep updating)
+			stage.update();
+		}
+
+		// run once and on resize/orientation changes
+		window.addEventListener('resize', resizeCanvas, false);
+		window.addEventListener('orientationchange', resizeCanvas, false);
+		resizeCanvas();
+	})();
 }
 </script>
 </head>
-<body onload="init();" style="margin:0px;">
-	<div id="animation_container" 
-	     style="background-color:rgba(51, 102, 204, 1.00); width:100%; height:auto; margin:0 auto; position:relative;">
-		
-		<canvas id="canvas" width="960" height="640" 
-		        style="position:absolute; display:block; background-color:rgba(51, 102, 204, 1.00);">
+
+<body onload="init();" style="margin:0;">
+	<!-- 
+	     Padding-top trick manté la proporció (640/960 = 66.6667%)
+	     El contenidor ocupa 100% de l'ample i no sobrepassa la mida original.
+	-->
+	<div id="animation_container"
+	     style="position:relative; width:100%; max-width:960px; margin:0 auto; padding-top:66.6667%; background-color:rgba(51,102,204,1.00);">
+
+		<!-- canvas amb atributs originals (fallback) i CSS perquè ocupi el contenidor -->
+		<canvas id="canvas" width="960" height="640"
+		        style="position:absolute; left:0; top:0; display:block; width:100%; height:100%; background-color:rgba(51,102,204,1.00);">
 		</canvas>
-		
-		<div id="dom_overlay_container" 
-		     style="pointer-events:none; overflow:hidden; position:absolute; left:0; top:0; display:block;">
+
+		<!-- overlay per elements DOM que Animate pugui posar -->
+		<div id="dom_overlay_container"
+		     style="pointer-events:none; overflow:hidden; position:absolute; left:0; top:0; width:100%; height:100%;">
 		</div>
 	</div>
 </body>
